@@ -64,21 +64,6 @@ class NoteListScreen extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildQuickAction(IconData icon, String label, BuildContext context) {
-    return IconButton(
-      icon: Icon(icon),
-      onPressed: () {
-        if (label == 'Files') {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => NoteListScreen(), // Navigate to NoteListScreen
-            ),
-          );
-        }
-      },
-    );
-  }
 }
 
 class NoteDetailScreen extends StatelessWidget {
@@ -94,7 +79,7 @@ class NoteDetailScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(index != null ? 'Edit Note' : 'New Note'),
+        title: Text(index == null ? 'New Note' : 'Edit Note'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -130,6 +115,8 @@ class NoteDetailScreen extends StatelessWidget {
 }
 
 class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -162,10 +149,14 @@ class HomePage extends StatelessWidget {
       bottomNavigationBar: BottomNavigationBar(
         items: [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Calendar'),
-          BottomNavigationBarItem(icon: Icon(Icons.schedule), label: 'Study Schedule'),
-          BottomNavigationBarItem(icon: Icon(Icons.school), label: 'Study and Focus'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.calendar_today), label: 'Calendar'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.schedule), label: 'Study Schedule'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.school), label: 'Study and Focus'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.settings), label: 'Settings'),
         ],
       ),
     );
@@ -179,14 +170,15 @@ class HomePage extends StatelessWidget {
             if (label == 'Files') {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => NoteListScreen(), // Navigate to NoteListScreen
+                  builder: (context) =>
+                      NoteListScreen(), // Navigate to NoteListScreen
                 ),
               );
             }
             // Add other cases for the quick actions here as needed
           },
-          child: Icon(icon),
           mini: true,
+          child: Icon(icon),
         ),
         SizedBox(height: 8),
         Text(label, style: TextStyle(fontSize: 16)),
@@ -219,5 +211,3 @@ class FilesScreen extends StatelessWidget {
     );
   }
 }
-
-
