@@ -1,113 +1,296 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'note_provider.dart';
 
-void main() {
-  runApp(NoteTakingApp());
-}
+void main() => runApp(MyApp());
 
-class NoteTakingApp extends StatelessWidget {
-  const NoteTakingApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => NoteProvider(),
-      child: MaterialApp(
-        title: 'Note Taking App',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
+    return MaterialApp(
+      theme: ThemeData.light().copyWith(
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.grey[100],
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         ),
-        home: HomePage(), // Set HomePage as the initial screen
       ),
+      initialRoute: '/login',
+      routes: {
+        '/login': (context) => const LoginPage(),
+        '/register': (context) => const RegisterPage(),
+        '/home': (context) => const HomePage(),
+      },
     );
   }
 }
 
-class NoteListScreen extends StatelessWidget {
-  const NoteListScreen({super.key});
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
+  @override
+  _LoginPageState createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Notes'),
-      ),
-      body: Consumer<NoteProvider>(
-        builder: (context, noteProvider, child) {
-          return ListView.builder(
-            itemCount: noteProvider.notes.length,
-            itemBuilder: (context, index) {
-              return ListTile(
-                title: Text(noteProvider.notes[index]),
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => NoteDetailScreen(index: index),
+      appBar: AppBar(title: const Text('Login')),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: InputDecoration(
+                    labelText: 'Email Address',
+                    prefixIcon: Icon(
+                      Icons.email,
+                      color: Theme.of(context).primaryColor,
                     ),
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => NoteDetailScreen(),
+                    hintText: 'Enter your email',
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    if (!RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    ).hasMatch(value)) {
+                      return 'Please enter a valid email';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: Icon(
+                      Icons.lock,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    hintText: 'Enter your password',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your password';
+                    }
+                    if (value.length < 6) {
+                      return 'Password must be at least 6 characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 40),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        Navigator.pushReplacementNamed(context, '/home');
+                      }
+                    },
+                    child: const Text('Login', style: TextStyle(fontSize: 16)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/register');
+                  },
+                  child: Text(
+                    'Create New Account',
+                    style: TextStyle(
+                      color: Theme.of(context).primaryColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          );
-        },
-        child: Icon(Icons.add),
+          ),
+        ),
       ),
     );
   }
 }
 
-class NoteDetailScreen extends StatelessWidget {
-  final int? index;
-  const NoteDetailScreen({super.key, this.index});
+class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
+
+  @override
+  _RegisterPageState createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends State<RegisterPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   Widget build(BuildContext context) {
-    final noteProvider = Provider.of<NoteProvider>(context, listen: false);
-    final TextEditingController controller = TextEditingController(
-      text: index != null ? noteProvider.notes[index!] : '',
-    );
-
     return Scaffold(
-      appBar: AppBar(
-        title: Text(index == null ? 'New Note' : 'Edit Note'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: controller,
-              maxLines: null,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Note',
-              ),
+      appBar: AppBar(title: const Text('Register')),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
+                TextFormField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Full Name',
+                    prefixIcon: Icon(
+                      Icons.person,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    hintText: 'Enter your full name',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your name';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: InputDecoration(
+                    labelText: 'Email Address',
+                    prefixIcon: Icon(
+                      Icons.email,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    hintText: 'Enter your email',
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    if (!RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    ).hasMatch(value)) {
+                      return 'Please enter a valid email';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: Icon(
+                      Icons.lock,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    hintText: 'Enter your password',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your password';
+                    }
+                    if (value.length < 6) {
+                      return 'Password must be at least 6 characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 40),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        Navigator.pushReplacementNamed(context, '/home');
+                      }
+                    },
+                    child: const Text(
+                      'Register',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/login');
+                  },
+                  child: Text(
+                    'Already have an account? Login',
+                    style: TextStyle(
+                      color: Theme.of(context).primaryColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                if (index != null) {
-                  noteProvider.updateNote(
-                      index!, controller.text); // Removed removeEmojis function
-                } else {
-                  noteProvider.addNote(
-                      controller.text); // Removed removeEmojis function
-                }
-                Navigator.of(context).pop();
-              },
-              child: Text('Save'),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -121,67 +304,49 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Home Page'),
+        title: const Text('Home Page'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () {
+              Navigator.pushReplacementNamed(context, '/login');
+            },
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Quick Actions', style: TextStyle(fontSize: 24)),
-            SizedBox(height: 16),
+            const Text('Quick Actions', style: TextStyle(fontSize: 24)),
+            const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildQuickAction(Icons.file_copy, 'Files', context),
-                _buildQuickAction(Icons.add, 'Add Event', context),
-                _buildQuickAction(Icons.bar_chart, 'Statistics', context),
-                _buildQuickAction(Icons.timer, 'Reminder', context),
+                _buildQuickAction(Icons.file_copy, 'Files'),
+                _buildQuickAction(Icons.add, 'Add Event'),
+                _buildQuickAction(Icons.bar_chart, 'Statistics'),
+                _buildQuickAction(Icons.timer, 'Reminder'),
+                _buildQuickAction(Icons.settings, 'Setting'),
               ],
             ),
-            SizedBox(height: 32),
-            Text('Today\'s Events', style: TextStyle(fontSize: 24)),
-            SizedBox(height: 16),
+            const SizedBox(height: 32),
+            const Text('Today\'s Events', style: TextStyle(fontSize: 24)),
+            const SizedBox(height: 16),
             _buildEventCard(),
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_today), label: 'Calendar'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.schedule), label: 'Study Schedule'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.school), label: 'Study and Focus'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.settings), label: 'Settings'),
-        ],
-      ),
     );
   }
 
-  Widget _buildQuickAction(IconData icon, String label, BuildContext context) {
+  Widget _buildQuickAction(IconData icon, String label) {
     return Column(
       children: [
-        FloatingActionButton(
-          onPressed: () {
-            if (label == 'Files') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) =>
-                      NoteListScreen(), // Navigate to NoteListScreen
-                ),
-              );
-            }
-            // Add other cases for the quick actions here as needed
-          },
-          mini: true,
-          child: Icon(icon),
-        ),
-        SizedBox(height: 8),
-        Text(label, style: TextStyle(fontSize: 16)),
+        FloatingActionButton(onPressed: () {}, mini: true, child: Icon(icon)),
+        const SizedBox(height: 8),
+        Text(label, style: const TextStyle(fontSize: 16)),
       ],
     );
   }
@@ -189,24 +354,8 @@ class HomePage extends StatelessWidget {
   Widget _buildEventCard() {
     return Card(
       child: ListTile(
-        leading: Icon(Icons.calendar_today),
-        title: Text('No events today'),
-      ),
-    );
-  }
-}
-
-class FilesScreen extends StatelessWidget {
-  const FilesScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Files'),
-      ),
-      body: Center(
-        child: Text('This is the Files page.'),
+        leading: const Icon(Icons.calendar_today),
+        title: const Text('No events today'),
       ),
     );
   }
