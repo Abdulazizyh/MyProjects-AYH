@@ -520,12 +520,6 @@ class _NotesScreenState extends State<NotesScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notes'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
       ),
       body: ListView.builder(
         itemCount: notes.length,
@@ -533,6 +527,7 @@ class _NotesScreenState extends State<NotesScreen> {
           note: notes[index],
           index: index,
           onNoteDeleted: onNoteDeleted,
+          onNoteUpdated: onNoteUpdated, // Pass the callback
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -550,12 +545,24 @@ class _NotesScreenState extends State<NotesScreen> {
 
   void onNewNoteCreated(Note note) => setState(() => notes.add(note));
   void onNoteDeleted(int index) => setState(() => notes.removeAt(index));
+  void onNoteUpdated(int index, Note updatedNote) {
+    setState(() {
+      notes[index] = updatedNote;
+    });
+  }
 }
 
 class CreateNote extends StatefulWidget {
   final Function(Note) onNewNoteCreated;
+  final String? initialTitle; // Add initial title
+  final String? initialBody; // Add initial body
 
-  const CreateNote({super.key, required this.onNewNoteCreated});
+  const CreateNote({
+    super.key,
+    required this.onNewNoteCreated,
+    this.initialTitle,
+    this.initialBody,
+  });
 
   @override
   State<CreateNote> createState() => _CreateNoteState();
@@ -564,13 +571,13 @@ class CreateNote extends StatefulWidget {
 class _CreateNoteState extends State<CreateNote> {
   final titleController = TextEditingController();
   final bodyController = TextEditingController();
-  Color _selectedColor = Colors.black; // Default text color for body
-  double _selectedFontSize = 16.0; // Default font size for body
-  String _selectedTool = 'Pen'; // Default tool (Pen or Pencil)
-  String _calculatorInput = ''; // Calculator input
-  bool _showCalculator = false; // Toggle calculator visibility
+  Color _selectedColor = Colors.black;
+  double _selectedFontSize = 16.0;
+  String _selectedTool = 'Pen';
+  String _calculatorInput = '';
+  bool _showCalculator = false;
 
-  // List of colors for text
+  // Define the missing variables
   final List<Color> _colors = [
     Colors.black,
     Colors.red,
@@ -585,13 +592,19 @@ class _CreateNoteState extends State<CreateNote> {
     Colors.teal,
   ];
 
-  // List of font sizes
   final List<double> _fontSizes = [12, 14, 16, 18, 20, 24, 28, 32];
 
-  // List of tools (Pen or Pencil)
   final List<String> _tools = ['Pen', 'Pencil'];
 
-  // Helper method to determine button color
+  @override
+  void initState() {
+    super.initState();
+    // Initialize controllers with initial values if provided
+    titleController.text = widget.initialTitle ?? '';
+    bodyController.text = widget.initialBody ?? '';
+  }
+
+  // Define the missing methods
   Color _getButtonColor(String button) {
     if (button == 'C') {
       return Colors.red.shade400; // Red for clear button
@@ -604,7 +617,6 @@ class _CreateNoteState extends State<CreateNote> {
     }
   }
 
-  // Helper method to determine text color
   Color _getTextColor(String button) {
     if (['C', '=', '+', '-', '*', '/'].contains(button)) {
       return Colors.white; // White text for colored buttons
@@ -922,11 +934,13 @@ class NoteCard extends StatelessWidget {
     required this.note,
     required this.index,
     required this.onNoteDeleted,
+    required this.onNoteUpdated, // Add this parameter
   });
 
   final Note note;
   final int index;
   final Function(int) onNoteDeleted;
+  final Function(int, Note) onNoteUpdated; // Add this callback
 
   @override
   Widget build(BuildContext context) {
@@ -935,9 +949,29 @@ class NoteCard extends StatelessWidget {
       child: ListTile(
         title: Text(note.title),
         subtitle: Text(note.body),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete),
-          onPressed: () => onNoteDeleted(index),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min, // Ensure the Row takes minimal space
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CreateNote(
+                    onNewNoteCreated: (updatedNote) {
+                      onNoteUpdated(index, updatedNote); // Update the note
+                    },
+                    initialTitle: note.title, // Pass the existing title
+                    initialBody: note.body, // Pass the existing body
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () => onNoteDeleted(index),
+            ),
+          ],
         ),
         onTap: () => Navigator.push(
           context,
@@ -946,6 +980,7 @@ class NoteCard extends StatelessWidget {
               note: note,
               index: index,
               onNoteDeleted: onNoteDeleted,
+              onNoteUpdated: onNoteUpdated, // Pass the callback
             ),
           ),
         ),
@@ -960,11 +995,13 @@ class NoteView extends StatelessWidget {
     required this.note,
     required this.index,
     required this.onNoteDeleted,
+    required this.onNoteUpdated, // Add this parameter
   });
 
   final Note note;
   final int index;
   final Function(int) onNoteDeleted;
+  final Function(int, Note) onNoteUpdated; // Add this callback
 
   @override
   Widget build(BuildContext context) {
@@ -972,6 +1009,22 @@ class NoteView extends StatelessWidget {
       appBar: AppBar(
         title: const Text("Note View"),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CreateNote(
+                  onNewNoteCreated: (updatedNote) {
+                    onNoteUpdated(index, updatedNote); // Update the note
+                    Navigator.pop(context); // Close the edit screen
+                  },
+                  initialTitle: note.title, // Pass the existing title
+                  initialBody: note.body, // Pass the existing body
+                ),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.delete),
             onPressed: () => showDialog(
