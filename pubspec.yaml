@@ -9,12 +9,22 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.6
+  flutter_datetime_picker: ^1.5.0
+  awesome_notifications: ^0.10.1 # Use the latest version
+  intl: ^0.20.0
+  logger: ^2.5.0
+  permission_handler: ^11.4.0
+  syncfusion_flutter_datepicker: ^28.2.11+1 # For date picker
+  timezone: ^0.9.1 # For timezone support
+  provider: ^6.1.2
+  math_expressions: ^2.7.0
+
+
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.0
+  flutter_lints: ^2.0.3
 
 flutter:
   uses-material-design: true
