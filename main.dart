@@ -3,6 +3,7 @@ import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:math_expressions/math_expressions.dart';
+import 'dart:math';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +31,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => ReminderProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => StatisticsProvider()),
       ],
       child: const MyApp(),
     ),
@@ -47,12 +49,51 @@ class ThemeProvider with ChangeNotifier {
   }
 }
 
+class StatisticsProvider with ChangeNotifier {
+  int _notesCount = 0;
+  int _remindersCount = 0;
+  int _signInCount = 0; // New counter for sign-ins
+  int _appUsageCount = 0;
+
+  int get notesCount => _notesCount;
+  int get remindersCount => _remindersCount;
+  int get signInCount => _signInCount; // Getter for sign-in count
+  int get appUsageCount => _appUsageCount;
+
+  void incrementNotesCount() {
+    _notesCount++;
+    notifyListeners();
+  }
+
+  void incrementRemindersCount() {
+    _remindersCount++;
+    notifyListeners();
+  }
+
+  void incrementSignInCount() {
+    _signInCount++;
+    notifyListeners();
+  }
+
+  void incrementAppUsageCount() {
+    _appUsageCount++;
+    notifyListeners();
+  }
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final statisticsProvider = Provider.of<StatisticsProvider>(
+      context,
+      listen: false,
+    );
+
+    // Increment app usage counter when the app is launched
+    statisticsProvider.incrementAppUsageCount();
 
     return MaterialApp(
       theme: themeProvider.isDarkMode
@@ -65,17 +106,20 @@ class MyApp extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
               ),
             ),
       initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
-        '/home': (context) => const HomePage(),
+        '/home': (context) => HomePage(),
         '/notes': (context) => const NotesScreen(),
         '/settings': (context) => const SettingsPage(),
+        '/statistics': (context) => const StatisticsPage(),
       },
     );
   }
@@ -131,6 +175,11 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final statisticsProvider = Provider.of<StatisticsProvider>(
+      context,
+      listen: false,
+    );
+
     return Scaffold(
       appBar: AppBar(title: const Text('Login')),
       body: SingleChildScrollView(
@@ -156,8 +205,9 @@ class _LoginPageState extends State<LoginPage> {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your email';
                     }
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                        .hasMatch(value)) {
+                    if (!RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    ).hasMatch(value)) {
                       return 'Please enter a valid email';
                     }
                     return null;
@@ -210,6 +260,8 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
+                        // Increment sign-in count
+                        statisticsProvider.incrementSignInCount();
                         Navigator.pushReplacementNamed(context, '/home');
                       }
                     },
@@ -297,8 +349,9 @@ class _RegisterPageState extends State<RegisterPage> {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your email';
                     }
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                        .hasMatch(value)) {
+                    if (!RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    ).hasMatch(value)) {
                       return 'Please enter a valid email';
                     }
                     return null;
@@ -354,8 +407,10 @@ class _RegisterPageState extends State<RegisterPage> {
                         Navigator.pushReplacementNamed(context, '/home');
                       }
                     },
-                    child:
-                        const Text('Register', style: TextStyle(fontSize: 16)),
+                    child: const Text(
+                      'Register',
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -381,11 +436,15 @@ class _RegisterPageState extends State<RegisterPage> {
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+  HomePage({super.key});
+
+  // Define the calculator overlay instance
+  final CalculatorOverlay _calculatorOverlay = CalculatorOverlay();
 
   @override
   Widget build(BuildContext context) {
     final reminderProvider = Provider.of<ReminderProvider>(context);
+    final statisticsProvider = Provider.of<StatisticsProvider>(context);
     final todayReminders = reminderProvider.reminders.where((reminder) {
       final now = DateTime.now();
       return reminder.dateTime.year == now.year &&
@@ -418,23 +477,42 @@ class HomePage extends StatelessWidget {
                 _buildQuickAction(
                   Icons.file_copy,
                   'Notes',
-                  onTap: () => Navigator.pushNamed(context, '/notes'),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/notes');
+                  },
                 ),
-                _buildQuickAction(Icons.add, 'Add Event'),
-                _buildQuickAction(Icons.bar_chart, 'Statistics'),
+                _buildQuickAction(
+                  Icons.calculate,
+                  'Calculator',
+                  onTap: () => _calculatorOverlay.toggle(context),
+                ),
+                _buildQuickAction(
+                  Icons.bar_chart,
+                  'Statistics',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const StatisticsPage(),
+                      ),
+                    );
+                  },
+                ),
                 _buildQuickAction(
                   Icons.timer,
                   'Reminder',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CreateReminder(
-                        onReminderCreated: (reminder) {
-                          reminderProvider.addReminder(reminder);
-                        },
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CreateReminder(
+                          onReminderCreated: (reminder) {
+                            reminderProvider.addReminder(reminder);
+                          },
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
                 _buildQuickAction(
                   Icons.settings,
@@ -458,11 +536,7 @@ class HomePage extends StatelessWidget {
       onTap: onTap,
       child: Column(
         children: [
-          FloatingActionButton(
-            onPressed: onTap,
-            mini: true,
-            child: Icon(icon),
-          ),
+          FloatingActionButton(onPressed: onTap, mini: true, child: Icon(icon)),
           const SizedBox(height: 8),
           Text(label, style: const TextStyle(fontSize: 16)),
         ],
@@ -470,8 +544,11 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildEventCard(List<Reminder> todayReminders,
-      ReminderProvider reminderProvider, BuildContext context) {
+  Widget _buildEventCard(
+    List<Reminder> todayReminders,
+    ReminderProvider reminderProvider,
+    BuildContext context,
+  ) {
     if (todayReminders.isEmpty) {
       return const Card(
         child: ListTile(
@@ -488,9 +565,7 @@ class HomePage extends StatelessWidget {
           child: ListTile(
             leading: const Icon(Icons.timer),
             title: Text(reminder.title),
-            subtitle: Text(
-              DateFormat('HH:mm').format(reminder.dateTime),
-            ),
+            subtitle: Text(DateFormat('HH:mm').format(reminder.dateTime)),
             trailing: IconButton(
               icon: const Icon(Icons.delete),
               onPressed: () {
@@ -528,11 +603,18 @@ class _NotesScreenState extends State<NotesScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.note_alt_outlined, size: 80, color: Colors.grey.shade400),
+                  Icon(
+                    Icons.note_alt_outlined,
+                    size: 80,
+                    color: Colors.grey.shade400,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'No notes yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -556,12 +638,15 @@ class _NotesScreenState extends State<NotesScreen> {
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                CreateNote(onNewNoteCreated: onNewNoteCreated),
+            builder: (context) => CreateNote(
+              onNewNoteCreated: (note) {
+                onNewNoteCreated(note);
+              },
+            ),
           ),
         ),
-        child: const Icon(Icons.add),
         elevation: 4,
+        child: const Icon(Icons.add),
       ),
     );
   }
@@ -579,12 +664,14 @@ class CreateNote extends StatefulWidget {
   final Function(Note) onNewNoteCreated;
   final String? initialTitle;
   final String? initialBody;
+  final bool isEditing;
 
   const CreateNote({
     super.key,
     required this.onNewNoteCreated,
     this.initialTitle,
     this.initialBody,
+    this.isEditing = false,
   });
 
   @override
@@ -598,7 +685,6 @@ class _CreateNoteState extends State<CreateNote> {
   double _selectedFontSize = 16.0;
   String _selectedTool = 'Pen';
 
-  // Define the missing variables
   final List<Color> _colors = [
     Colors.black,
     Colors.red,
@@ -620,7 +706,6 @@ class _CreateNoteState extends State<CreateNote> {
   @override
   void initState() {
     super.initState();
-    // Initialize controllers with initial values if provided
     titleController.text = widget.initialTitle ?? '';
     bodyController.text = widget.initialBody ?? '';
   }
@@ -635,9 +720,7 @@ class _CreateNoteState extends State<CreateNote> {
       ),
       body: Container(
         padding: const EdgeInsets.all(16.0),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-        ),
+        decoration: BoxDecoration(color: Colors.grey.shade50),
         child: Column(
           children: [
             // Title Input
@@ -700,7 +783,7 @@ class _CreateNoteState extends State<CreateNote> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // Tool Selection (Pen or Pencil)
                   Row(
                     children: _tools.map((tool) {
@@ -712,7 +795,10 @@ class _CreateNoteState extends State<CreateNote> {
                         },
                         child: Container(
                           margin: const EdgeInsets.only(right: 12),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: _selectedTool == tool
                                 ? Colors.blue.shade500
@@ -722,8 +808,12 @@ class _CreateNoteState extends State<CreateNote> {
                           child: Text(
                             tool,
                             style: TextStyle(
-                              color: _selectedTool == tool ? Colors.white : Colors.black87,
-                              fontWeight: _selectedTool == tool ? FontWeight.bold : FontWeight.normal,
+                              color: _selectedTool == tool
+                                  ? Colors.white
+                                  : Colors.black87,
+                              fontWeight: _selectedTool == tool
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           ),
                         ),
@@ -742,7 +832,7 @@ class _CreateNoteState extends State<CreateNote> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  
+
                   // Color Selection
                   SizedBox(
                     height: 50,
@@ -782,7 +872,7 @@ class _CreateNoteState extends State<CreateNote> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Font Size Label
                   Text(
                     'Font Size',
@@ -808,7 +898,10 @@ class _CreateNoteState extends State<CreateNote> {
                           },
                           child: Container(
                             margin: const EdgeInsets.only(right: 12),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: _selectedFontSize == size
                                   ? Colors.blue.shade500
@@ -818,8 +911,12 @@ class _CreateNoteState extends State<CreateNote> {
                             child: Text(
                               size.toString(),
                               style: TextStyle(
-                                color: _selectedFontSize == size ? Colors.white : Colors.black87,
-                                fontWeight: _selectedFontSize == size ? FontWeight.bold : FontWeight.normal,
+                                color: _selectedFontSize == size
+                                    ? Colors.white
+                                    : Colors.black87,
+                                fontWeight: _selectedFontSize == size
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                               ),
                             ),
                           ),
@@ -857,9 +954,7 @@ class _CreateNoteState extends State<CreateNote> {
                   expands: true,
                   decoration: InputDecoration(
                     hintText: "Start writing...",
-                    hintStyle: TextStyle(
-                      color: Colors.grey.shade400,
-                    ),
+                    hintStyle: TextStyle(color: Colors.grey.shade400),
                     contentPadding: const EdgeInsets.all(16),
                     border: InputBorder.none,
                   ),
@@ -872,25 +967,33 @@ class _CreateNoteState extends State<CreateNote> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           if (titleController.text.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Please add a title')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Please add a title')));
             return;
           }
-          
+
           if (bodyController.text.isEmpty) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Please add some content')),
             );
             return;
           }
-          
+
+          // Save the note
           widget.onNewNoteCreated(
-            Note(
-              title: titleController.text,
-              body: bodyController.text,
-            ),
+            Note(title: titleController.text, body: bodyController.text),
           );
+
+          // Increment the count only if it's a new note (not an edit)
+          if (!widget.isEditing) {
+            final statisticsProvider = Provider.of<StatisticsProvider>(
+              context,
+              listen: false,
+            );
+            statisticsProvider.incrementNotesCount();
+          }
+
           Navigator.pop(context);
         },
         icon: const Icon(Icons.save),
@@ -931,13 +1034,13 @@ class NoteCard extends StatelessWidget {
         ],
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 12,
+        ),
         title: Text(
           note.title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 8),
@@ -962,6 +1065,7 @@ class NoteCard extends StatelessWidget {
                     },
                     initialTitle: note.title,
                     initialBody: note.body,
+                    isEditing: true,
                   ),
                 ),
               ),
@@ -972,7 +1076,9 @@ class NoteCard extends StatelessWidget {
                 context: context,
                 builder: (context) => AlertDialog(
                   title: const Text("Delete Note?"),
-                  content: Text("Are you sure you want to delete '${note.title}'?"),
+                  content: Text(
+                    "Are you sure you want to delete '${note.title}'?",
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -1047,6 +1153,7 @@ class NoteView extends StatelessWidget {
                   },
                   initialTitle: note.title,
                   initialBody: note.body,
+                  isEditing: true,
                 ),
               ),
             ),
@@ -1057,7 +1164,9 @@ class NoteView extends StatelessWidget {
               context: context,
               builder: (context) => AlertDialog(
                 title: const Text("Delete Note?"),
-                content: Text("Are you sure you want to delete '${note.title}'?"),
+                content: Text(
+                  "Are you sure you want to delete '${note.title}'?",
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -1131,8 +1240,13 @@ class NoteView extends StatelessWidget {
 
 class CreateReminder extends StatefulWidget {
   final Function(Reminder) onReminderCreated;
+  final bool isEditing;
 
-  const CreateReminder({super.key, required this.onReminderCreated});
+  const CreateReminder({
+    super.key,
+    required this.onReminderCreated,
+    this.isEditing = false,
+  });
 
   @override
   State<CreateReminder> createState() => _CreateReminderState();
@@ -1144,167 +1258,154 @@ class _CreateReminderState extends State<CreateReminder> {
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? pickedDate = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2101),
+  @override
+  Widget build(BuildContext context) {
+    final scheduledDateTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
     );
-    if (pickedDate != null && pickedDate != _selectedDate) {
-      setState(() {
-        _selectedDate = pickedDate;
-      });
-    }
-  }
 
-  Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? pickedTime = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime,
-    );
-    if (pickedTime != null && pickedTime != _selectedTime) {
-      setState(() {
-        _selectedTime = pickedTime;
-      });
-    }
-  }
-@override
-Widget build(BuildContext context) {
-  final scheduledDateTime = DateTime(
-    _selectedDate.year,
-    _selectedDate.month,
-    _selectedDate.day,
-    _selectedTime.hour,
-    _selectedTime.minute,
-  );
+    // Format date and time for display
+    final dateFormatted =
+        "${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}";
+    final timeFormatted =
+        "${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}";
 
-  // Format date and time for display
-  final dateFormatted = "${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}";
-  final timeFormatted = "${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}";
-
-  return Scaffold(
-    appBar: AppBar(title: const Text('Create Reminder')),
-    body: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextFormField(
-            controller: _titleController,
-            decoration: const InputDecoration(
-              labelText: 'Title',
-              border: OutlineInputBorder(),
+    return Scaffold(
+      appBar: AppBar(title: const Text('Create Reminder')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                labelText: 'Title',
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          TextFormField(
-            controller: _descriptionController,
-            decoration: const InputDecoration(
-              labelText: 'Description',
-              border: OutlineInputBorder(),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: _descriptionController,
+              decoration: const InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
             ),
-            maxLines: 3,
-          ),
-          const SizedBox(height: 30),
-          InkWell(
-            onTap: () async {
-              // First select date, then time
-              final DateTime? pickedDate = await showDatePicker(
-                context: context,
-                initialDate: _selectedDate,
-                firstDate: DateTime.now(),
-                lastDate: DateTime(2101),
-              );
-              
-              if (pickedDate != null) {
-                setState(() {
-                  _selectedDate = pickedDate;
-                });
-                
-                // After date is selected, show time picker
-                final TimeOfDay? pickedTime = await showTimePicker(
+            const SizedBox(height: 30),
+            InkWell(
+              onTap: () async {
+                // First select date, then time
+                final DateTime? pickedDate = await showDatePicker(
                   context: context,
-                  initialTime: _selectedTime,
+                  initialDate: _selectedDate,
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime(2101),
                 );
-                
-                if (pickedTime != null) {
+
+                if (pickedDate != null) {
                   setState(() {
-                    _selectedTime = pickedTime;
+                    _selectedDate = pickedDate;
                   });
+
+                  // After date is selected, show time picker
+                  final TimeOfDay? pickedTime = await showTimePicker(
+                    context: context,
+                    initialTime: _selectedTime,
+                  );
+
+                  if (pickedTime != null) {
+                    setState(() {
+                      _selectedTime = pickedTime;
+                    });
+                  }
                 }
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.blue.shade300, Colors.blue.shade700],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blue.withOpacity(0.3),
-                    spreadRadius: 1,
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade300, Colors.blue.shade700],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
                   ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.calendar_today, color: Colors.white),
-                  const SizedBox(width: 10),
-                  Text(
-                    "$dateFormatted at $timeFormatted",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.3),
+                      spreadRadius: 1,
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.calendar_today, color: Colors.white),
+                    const SizedBox(width: 10),
+                    Text(
+                      "$dateFormatted at $timeFormatted",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Reminder set for: ${scheduledDateTime.toLocal().toString().substring(0, 16)}',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey.shade700,
+            const SizedBox(height: 20),
+            Text(
+              'Reminder set for: ${scheduledDateTime.toLocal().toString().substring(0, 16)}',
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: () {
-        if (_titleController.text.isEmpty ||
-            _descriptionController.text.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please fill in all fields')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          if (_titleController.text.isEmpty ||
+              _descriptionController.text.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Please fill in all fields')),
+            );
+            return;
+          }
+
+          // Save the reminder
+          final reminder = Reminder(
+            title: _titleController.text,
+            description: _descriptionController.text,
+            dateTime: scheduledDateTime,
           );
-          return;
-        }
-        final reminder = Reminder(
-          title: _titleController.text,
-          description: _descriptionController.text,
-          dateTime: scheduledDateTime,
-        );
-        widget.onReminderCreated(reminder);
-        scheduleNotification(reminder);
-        Navigator.pop(context);
-      },
-      icon: const Icon(Icons.save),
-      label: const Text('Save Reminder'),
-    ),
-  );
-}
+          widget.onReminderCreated(reminder);
+
+          // Increment the count only if it's a new reminder (not an edit)
+          if (!widget.isEditing) {
+            final statisticsProvider = Provider.of<StatisticsProvider>(
+              context,
+              listen: false,
+            );
+            statisticsProvider.incrementRemindersCount();
+          }
+
+          scheduleNotification(reminder);
+          Navigator.pop(context);
+        },
+        icon: const Icon(Icons.save),
+        label: const Text('Save Reminder'),
+      ),
+    );
+  }
+
   Future<void> scheduleNotification(Reminder reminder) async {
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
@@ -1342,9 +1443,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
@@ -1363,7 +1462,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 },
               ),
               const SizedBox(height: 20),
-              
+
               // Info and Support buttons
               Row(
                 children: [
@@ -1377,7 +1476,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     icon: const Icon(Icons.info_outline),
                     label: const Text('App Info'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: showInfo ? Theme.of(context).colorScheme.primary : null,
+                      backgroundColor: showInfo
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
                       foregroundColor: showInfo ? Colors.white : null,
                     ),
                   ),
@@ -1392,25 +1493,30 @@ class _SettingsPageState extends State<SettingsPage> {
                     icon: const Icon(Icons.contact_support_outlined),
                     label: const Text('Contact Support'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: showSupport ? Theme.of(context).colorScheme.primary : null,
+                      backgroundColor: showSupport
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
                       foregroundColor: showSupport ? Colors.white : null,
                     ),
                   ),
                 ],
               ),
-              
+
               // Info section
-              if (showInfo) 
+              if (showInfo)
                 const Card(
                   margin: EdgeInsets.symmetric(vertical: 16),
                   child: Padding(
-                    padding: EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'About',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         SizedBox(height: 8),
                         Text(
@@ -1434,7 +1540,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ),
                 ),
-              
+
               // Support section
               if (showSupport)
                 Card(
@@ -1446,7 +1552,10 @@ class _SettingsPageState extends State<SettingsPage> {
                       children: [
                         const Text(
                           'Contact Support',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(height: 16),
                         ListTile(
@@ -1483,5 +1592,528 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     );
+  }
+}
+
+class StatisticsPage extends StatelessWidget {
+  const StatisticsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final statisticsProvider = Provider.of<StatisticsProvider>(context);
+
+    // Calculate percentages for visualization
+    final int totalItems = statisticsProvider.notesCount +
+        statisticsProvider.remindersCount +
+        statisticsProvider.signInCount; // Use signInCount instead of otherCount
+
+    final double notesPercentage =
+        totalItems > 0 ? statisticsProvider.notesCount / totalItems : 0.0;
+    final double remindersPercentage =
+        totalItems > 0 ? statisticsProvider.remindersCount / totalItems : 0.0;
+    final double signInPercentage = totalItems > 0
+        ? statisticsProvider.signInCount / totalItems
+        : 0.0; // Use signInCount
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Statistics')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Text(
+              'Usage Statistics',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+
+            // Circular Statistics Design
+            SizedBox(
+              width: 300, // Enlarged circle
+              height: 300, // Enlarged circle
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Background Circle
+                  Container(
+                    width: 300,
+                    height: 300,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.grey[200],
+                    ),
+                  ),
+
+                  // Notes Circle
+                  Container(
+                    width: 300,
+                    height: 300,
+                    child: CircularProgressIndicator(
+                      value: notesPercentage,
+                      strokeWidth: 30, // Thicker stroke
+                      backgroundColor: Colors.transparent,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                    ),
+                  ),
+
+                  // Reminders Circle
+                  Container(
+                    width: 300,
+                    height: 300,
+                    child: Transform.rotate(
+                      angle: 2 * pi * notesPercentage,
+                      child: CircularProgressIndicator(
+                        value: remindersPercentage,
+                        strokeWidth: 30, // Thicker stroke
+                        backgroundColor: Colors.transparent,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                      ),
+                    ),
+                  ),
+
+                  // Sign-In Circle
+                  Container(
+                    width: 300,
+                    height: 300,
+                    child: Transform.rotate(
+                      angle: 2 * pi * (notesPercentage + remindersPercentage),
+                      child: CircularProgressIndicator(
+                        value: signInPercentage,
+                        strokeWidth: 30, // Thicker stroke
+                        backgroundColor: Colors.transparent,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Colors.orange,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Center Text
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Total',
+                        style: TextStyle(
+                          fontSize: 24, // Larger font
+                          color: Colors.black, // Set text color to black
+                        ),
+                      ),
+                      Text(
+                        totalItems.toString(),
+                        style: const TextStyle(
+                          fontSize: 36, // Larger font
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black, // Set text color to black
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Percentage Labels
+                  Positioned(
+                    top: 50, // Adjust position for Notes percentage
+                    child: Text(
+                      '${(notesPercentage * 100).toStringAsFixed(1)}%',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 50, // Adjust position for Reminders percentage
+                    left: 50,
+                    child: Text(
+                      '${(remindersPercentage * 100).toStringAsFixed(1)}%',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 50, // Adjust position for Sign-In percentage
+                    right: 50,
+                    child: Text(
+                      '${(signInPercentage * 100).toStringAsFixed(1)}%',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Legend
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildLegend(Colors.blue, 'Notes'),
+                const SizedBox(width: 20),
+                _buildLegend(Colors.green, 'Reminders'),
+                const SizedBox(width: 20),
+                _buildLegend(Colors.orange, 'Sign-Ins'), // Updated label
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // App Usage Statistic
+            Card(
+              margin: const EdgeInsets.all(16),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    const Text(
+                      'App Usage This Month',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '${statisticsProvider.appUsageCount} times',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper method to build legend items
+  Widget _buildLegend(Color color, String label) {
+    return Row(
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Text(label, style: const TextStyle(fontSize: 16)),
+      ],
+    );
+  }
+}
+
+// First, let's create a Calculator widget
+class Calculator extends StatefulWidget {
+  final Function() onClose;
+
+  const Calculator({super.key, required this.onClose});
+
+  @override
+  State<Calculator> createState() => _CalculatorState();
+}
+
+class _CalculatorState extends State<Calculator> {
+  String _input = '';
+  String _output = '';
+  bool _isError = false;
+
+  void _onButtonPressed(String buttonText) {
+    setState(() {
+      if (buttonText == 'C') {
+        _input = '';
+        _output = '';
+        _isError = false;
+      } else if (buttonText == '⌫') {
+        if (_input.isNotEmpty) {
+          _input = _input.substring(0, _input.length - 1);
+        }
+      } else if (buttonText == '=') {
+        try {
+          Parser p = Parser();
+          Expression exp = p.parse(_input);
+          ContextModel cm = ContextModel();
+          double result = exp.evaluate(EvaluationType.REAL, cm);
+
+          // Format result to avoid excessive decimals
+          if (result == result.toInt()) {
+            _output = result.toInt().toString();
+          } else {
+            _output = result
+                .toStringAsFixed(6)
+                .replaceAll(RegExp(r'0+$'), '')
+                .replaceAll(RegExp(r'\.$'), '');
+          }
+          _isError = false;
+        } catch (e) {
+          _output = 'Error';
+          _isError = true;
+        }
+      } else {
+        _input += buttonText;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      child: Container(
+        width: 300,
+        height: 450, // Fixed height to prevent overflow
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Calculator header with close button
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Calculator',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: widget.onClose,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ),
+
+            // Display area
+            Container(
+              padding: const EdgeInsets.all(16),
+              alignment: Alignment.bottomRight,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.grey.withOpacity(0.2),
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  // Input
+                  Text(
+                    _input,
+                    style: TextStyle(
+                      fontSize: 20,
+                      color: Theme.of(context)
+                          .textTheme
+                          .bodyLarge
+                          ?.color
+                          ?.withOpacity(0.7),
+                    ),
+                    textAlign: TextAlign.end,
+                  ),
+                  const SizedBox(height: 8),
+                  // Output
+                  Text(
+                    _output,
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: _isError
+                          ? Colors.red
+                          : Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
+                    textAlign: TextAlign.end,
+                  ),
+                ],
+              ),
+            ),
+
+            // Calculator buttons
+            Expanded(
+              child: SingleChildScrollView(
+                // Add a scrollable area for the buttons
+                child: GridView.count(
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 4,
+                  childAspectRatio: 1.3,
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  children: [
+                    _buildButton('C', isFunction: true),
+                    _buildButton('('),
+                    _buildButton(')'),
+                    _buildButton('⌫', isFunction: true),
+                    _buildButton('7'),
+                    _buildButton('8'),
+                    _buildButton('9'),
+                    _buildButton('÷', isOperator: true),
+                    _buildButton('4'),
+                    _buildButton('5'),
+                    _buildButton('6'),
+                    _buildButton('×', isOperator: true),
+                    _buildButton('1'),
+                    _buildButton('2'),
+                    _buildButton('3'),
+                    _buildButton('-', isOperator: true),
+                    _buildButton('0'),
+                    _buildButton('.'),
+                    _buildButton('=', isEqual: true),
+                    _buildButton('+', isOperator: true),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildButton(String text,
+      {bool isOperator = false,
+      bool isFunction = false,
+      bool isEqual = false}) {
+    Color buttonColor;
+    Color textColor;
+
+    if (isEqual) {
+      buttonColor = Theme.of(context).primaryColor;
+      textColor = Colors.white;
+    } else if (isOperator) {
+      buttonColor = Colors.orange.shade100;
+      textColor = Colors.orange.shade800;
+    } else if (isFunction) {
+      buttonColor = Colors.grey.shade200;
+      textColor = Colors.black;
+    } else {
+      buttonColor = Theme.of(context).cardColor;
+      textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    }
+
+    return InkWell(
+      onTap: () => _onButtonPressed(text),
+      child: Container(
+        margin: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: buttonColor,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 1,
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight:
+                  isOperator || isEqual ? FontWeight.bold : FontWeight.normal,
+              color: textColor,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Overlay controller to show and position the calculator
+class CalculatorOverlay {
+  OverlayEntry? _overlayEntry;
+  bool _isVisible = false;
+  Offset _offset = const Offset(20, 100); // Initial position
+
+  void show(BuildContext context) {
+    if (_isVisible) return;
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: _offset.dx,
+        top: _offset.dy,
+        child: GestureDetector(
+          onPanUpdate: (details) {
+            // Update the position when dragged
+            setState(() {
+              _offset = Offset(
+                _offset.dx + details.delta.dx,
+                _offset.dy + details.delta.dy,
+              );
+            });
+          },
+          child: Material(
+            child: Calculator(
+              onClose: () => hide(),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+    _isVisible = true;
+  }
+
+  void hide() {
+    if (!_isVisible) return;
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    _isVisible = false;
+  }
+
+  void setState(VoidCallback fn) {
+    if (_overlayEntry != null) {
+      _overlayEntry!.markNeedsBuild();
+    }
+  }
+
+  bool get isVisible => _isVisible;
+
+  void toggle(BuildContext context) {
+    if (_isVisible) {
+      hide();
+    } else {
+      show(context);
+    }
   }
 }
