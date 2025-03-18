@@ -520,16 +520,38 @@ class _NotesScreenState extends State<NotesScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notes'),
+        elevation: 0,
+        centerTitle: true,
       ),
-      body: ListView.builder(
-        itemCount: notes.length,
-        itemBuilder: (context, index) => NoteCard(
-          note: notes[index],
-          index: index,
-          onNoteDeleted: onNoteDeleted,
-          onNoteUpdated: onNoteUpdated, // Pass the callback
-        ),
-      ),
+      body: notes.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.note_alt_outlined, size: 80, color: Colors.grey.shade400),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No notes yet',
+                    style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tap the + button to create a note',
+                    style: TextStyle(color: Colors.grey.shade500),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              itemCount: notes.length,
+              padding: const EdgeInsets.all(12),
+              itemBuilder: (context, index) => NoteCard(
+                note: notes[index],
+                index: index,
+                onNoteDeleted: onNoteDeleted,
+                onNoteUpdated: onNoteUpdated,
+              ),
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.push(
           context,
@@ -539,6 +561,7 @@ class _NotesScreenState extends State<NotesScreen> {
           ),
         ),
         child: const Icon(Icons.add),
+        elevation: 4,
       ),
     );
   }
@@ -554,8 +577,8 @@ class _NotesScreenState extends State<NotesScreen> {
 
 class CreateNote extends StatefulWidget {
   final Function(Note) onNewNoteCreated;
-  final String? initialTitle; // Add initial title
-  final String? initialBody; // Add initial body
+  final String? initialTitle;
+  final String? initialBody;
 
   const CreateNote({
     super.key,
@@ -574,8 +597,6 @@ class _CreateNoteState extends State<CreateNote> {
   Color _selectedColor = Colors.black;
   double _selectedFontSize = 16.0;
   String _selectedTool = 'Pen';
-  String _calculatorInput = '';
-  bool _showCalculator = false;
 
   // Define the missing variables
   final List<Color> _colors = [
@@ -604,189 +625,266 @@ class _CreateNoteState extends State<CreateNote> {
     bodyController.text = widget.initialBody ?? '';
   }
 
-  // Define the missing methods
-  Color _getButtonColor(String button) {
-    if (button == 'C') {
-      return Colors.red.shade400; // Red for clear button
-    } else if (button == '=') {
-      return Colors.green.shade400; // Green for equals button
-    } else if (['+', '-', '*', '/'].contains(button)) {
-      return Colors.orange.shade400; // Orange for operators
-    } else {
-      return Colors.white.withOpacity(0.2); // Light gray for numbers
-    }
-  }
-
-  Color _getTextColor(String button) {
-    if (['C', '=', '+', '-', '*', '/'].contains(button)) {
-      return Colors.white; // White text for colored buttons
-    } else {
-      return Colors.black; // Black text for number buttons
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Note'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.calculate),
-            onPressed: () {
-              setState(() {
-                _showCalculator = !_showCalculator;
-              });
-            },
-          ),
-        ],
+        title: Text(widget.initialTitle != null ? 'Edit Note' : 'New Note'),
+        centerTitle: true,
+        elevation: 0,
       ),
-      body: Padding(
+      body: Container(
         padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+        ),
         child: Column(
           children: [
-            // Title Input (Not affected by color or font size)
-            TextFormField(
-              controller: titleController,
-              style: const TextStyle(
-                fontSize: 24, // Fixed font size for title
-                color: Colors.black, // Fixed color for title
-              ),
-              decoration: InputDecoration(
-                hintText: "Title",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Tool Selection (Pen or Pencil)
-            Row(
-              children: _tools.map((tool) {
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedTool = tool;
-                    });
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: _selectedTool == tool
-                          ? Colors.blue
-                          : Colors.grey[200],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      tool,
-                      style: TextStyle(
-                        color:
-                            _selectedTool == tool ? Colors.white : Colors.black,
-                      ),
-                    ),
+            // Title Input
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    spreadRadius: 1,
                   ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 20),
-
-            // Color Selection (Affects only body)
-            SizedBox(
-              height: 50,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: _colors.map((color) {
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedColor = color;
-                      });
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: _selectedColor == color
-                            ? Border.all(color: Colors.black, width: 2)
-                            : null,
-                      ),
-                    ),
-                  );
-                }).toList(),
+                ],
               ),
-            ),
-            const SizedBox(height: 20),
-
-            // Font Size Selection (Affects only body)
-            SizedBox(
-              height: 50,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: _fontSizes.map((size) {
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedFontSize = size;
-                      });
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: _selectedFontSize == size
-                            ? Colors.blue
-                            : Colors.grey[200],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        size.toString(),
-                        style: TextStyle(
-                          color: _selectedFontSize == size
-                              ? Colors.white
-                              : Colors.black,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Body Input (Affected by color and font size)
-            Expanded(
               child: TextFormField(
-                controller: bodyController,
-                style: TextStyle(
-                  fontSize: _selectedFontSize,
-                  color: _selectedColor,
+                controller: titleController,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
                 ),
-                maxLines: null,
-                expands: true,
                 decoration: InputDecoration(
-                  hintText: "Start writing...",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  hintText: "Title",
+                  hintStyle: TextStyle(
+                    color: Colors.grey.shade400,
+                    fontWeight: FontWeight.normal,
+                  ),
+                  contentPadding: const EdgeInsets.all(16),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Formatting tools in a card
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Label
+                  Text(
+                    'Formatting',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Tool Selection (Pen or Pencil)
+                  Row(
+                    children: _tools.map((tool) {
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedTool = tool;
+                          });
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _selectedTool == tool
+                                ? Colors.blue.shade500
+                                : Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            tool,
+                            style: TextStyle(
+                              color: _selectedTool == tool ? Colors.white : Colors.black87,
+                              fontWeight: _selectedTool == tool ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Color Selection Label
+                  Text(
+                    'Text Color',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // Color Selection
+                  SizedBox(
+                    height: 50,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: _colors.map((color) {
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedColor = color;
+                            });
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: _selectedColor == color
+                                    ? Colors.blue
+                                    : Colors.transparent,
+                                width: 3,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  spreadRadius: 0,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Font Size Label
+                  Text(
+                    'Font Size',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Font Size Selection
+                  SizedBox(
+                    height: 50,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: _fontSizes.map((size) {
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedFontSize = size;
+                            });
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _selectedFontSize == size
+                                  ? Colors.blue.shade500
+                                  : Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              size.toString(),
+                              style: TextStyle(
+                                color: _selectedFontSize == size ? Colors.white : Colors.black87,
+                                fontWeight: _selectedFontSize == size ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Body Input
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: TextFormField(
+                  controller: bodyController,
+                  style: TextStyle(
+                    fontSize: _selectedFontSize,
+                    color: _selectedColor,
+                    height: 1.5,
+                  ),
+                  maxLines: null,
+                  expands: true,
+                  decoration: InputDecoration(
+                    hintText: "Start writing...",
+                    hintStyle: TextStyle(
+                      color: Colors.grey.shade400,
+                    ),
+                    contentPadding: const EdgeInsets.all(16),
+                    border: InputBorder.none,
                   ),
                 ),
               ),
             ),
-
-            // Calculator (Conditional Visibility)
-            if (_showCalculator) _buildCalculator(),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          if (titleController.text.isEmpty || bodyController.text.isEmpty) {
+          if (titleController.text.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Please add a title')),
+            );
             return;
           }
+          
+          if (bodyController.text.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Please add some content')),
+            );
+            return;
+          }
+          
           widget.onNewNoteCreated(
             Note(
               title: titleController.text,
@@ -795,136 +893,11 @@ class _CreateNoteState extends State<CreateNote> {
           );
           Navigator.pop(context);
         },
-        child: const Icon(Icons.save),
+        icon: const Icon(Icons.save),
+        label: const Text('Save'),
+        backgroundColor: Colors.blue.shade600,
       ),
     );
-  }
-
-  // Calculator Widget
-  Widget _buildCalculator() {
-    return Container(
-      padding: const EdgeInsets.all(12), // Reduced padding
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.blue.shade800, Colors.blue.shade600],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12), // Smaller border radius
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min, // Make the column take up minimal space
-        children: [
-          // Calculator Display
-          Container(
-            padding: const EdgeInsets.all(12), // Reduced padding
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _calculatorInput,
-                    style: const TextStyle(
-                      fontSize: 24, // Smaller font size
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.end,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10), // Reduced spacing
-
-          // Calculator Buttons
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(), // Disable scrolling
-            crossAxisCount: 4,
-            mainAxisSpacing: 8, // Reduced spacing
-            crossAxisSpacing: 8, // Reduced spacing
-            childAspectRatio: 1.2, // Adjust button aspect ratio
-            children: [
-              '7',
-              '8',
-              '9',
-              '/',
-              '4',
-              '5',
-              '6',
-              '*',
-              '1',
-              '2',
-              '3',
-              '-',
-              'C',
-              '0',
-              '=',
-              '+',
-            ].map((button) {
-              return GestureDetector(
-                onTap: () => _onCalculatorButtonPressed(button),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: _getButtonColor(button),
-                    borderRadius:
-                        BorderRadius.circular(8), // Smaller border radius
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 3,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      button,
-                      style: TextStyle(
-                        fontSize: 20, // Smaller font size
-                        color: _getTextColor(button),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Calculator Button Logic
-  void _onCalculatorButtonPressed(String button) {
-    setState(() {
-      if (button == 'C') {
-        _calculatorInput = '';
-      } else if (button == '=') {
-        try {
-          Parser p = Parser();
-          Expression exp = p.parse(_calculatorInput);
-          ContextModel cm = ContextModel();
-          _calculatorInput = exp.evaluate(EvaluationType.REAL, cm).toString();
-        } catch (e) {
-          _calculatorInput = 'Error';
-        }
-      } else {
-        _calculatorInput += button;
-      }
-    });
   }
 }
 
@@ -934,42 +907,93 @@ class NoteCard extends StatelessWidget {
     required this.note,
     required this.index,
     required this.onNoteDeleted,
-    required this.onNoteUpdated, // Add this parameter
+    required this.onNoteUpdated,
   });
 
   final Note note;
   final int index;
   final Function(int) onNoteDeleted;
-  final Function(int, Note) onNoteUpdated; // Add this callback
+  final Function(int, Note) onNoteUpdated;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
       child: ListTile(
-        title: Text(note.title),
-        subtitle: Text(note.body),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        title: Text(
+          note.title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            note.body,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
+        ),
         trailing: Row(
-          mainAxisSize: MainAxisSize.min, // Ensure the Row takes minimal space
+          mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(Icons.edit),
+              icon: Icon(Icons.edit, color: Colors.blue.shade600),
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => CreateNote(
                     onNewNoteCreated: (updatedNote) {
-                      onNoteUpdated(index, updatedNote); // Update the note
+                      onNoteUpdated(index, updatedNote);
                     },
-                    initialTitle: note.title, // Pass the existing title
-                    initialBody: note.body, // Pass the existing body
+                    initialTitle: note.title,
+                    initialBody: note.body,
                   ),
                 ),
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () => onNoteDeleted(index),
+              icon: Icon(Icons.delete, color: Colors.red.shade400),
+              onPressed: () => showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("Delete Note?"),
+                  content: Text("Are you sure you want to delete '${note.title}'?"),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("CANCEL"),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        onNoteDeleted(index);
+                      },
+                      child: Text(
+                        "DELETE",
+                        style: TextStyle(color: Colors.red.shade400),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -980,7 +1004,7 @@ class NoteCard extends StatelessWidget {
               note: note,
               index: index,
               onNoteDeleted: onNoteDeleted,
-              onNoteUpdated: onNoteUpdated, // Pass the callback
+              onNoteUpdated: onNoteUpdated,
             ),
           ),
         ),
@@ -995,19 +1019,21 @@ class NoteView extends StatelessWidget {
     required this.note,
     required this.index,
     required this.onNoteDeleted,
-    required this.onNoteUpdated, // Add this parameter
+    required this.onNoteUpdated,
   });
 
   final Note note;
   final int index;
   final Function(int) onNoteDeleted;
-  final Function(int, Note) onNoteUpdated; // Add this callback
+  final Function(int, Note) onNoteUpdated;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Note View"),
+        title: const Text("Note"),
+        centerTitle: true,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
@@ -1016,34 +1042,40 @@ class NoteView extends StatelessWidget {
               MaterialPageRoute(
                 builder: (context) => CreateNote(
                   onNewNoteCreated: (updatedNote) {
-                    onNoteUpdated(index, updatedNote); // Update the note
-                    Navigator.pop(context); // Close the edit screen
+                    onNoteUpdated(index, updatedNote);
+                    Navigator.pop(context);
                   },
-                  initialTitle: note.title, // Pass the existing title
-                  initialBody: note.body, // Pass the existing body
+                  initialTitle: note.title,
+                  initialBody: note.body,
                 ),
               ),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.delete),
+            icon: Icon(Icons.delete, color: Colors.red.shade400),
             onPressed: () => showDialog(
               context: context,
               builder: (context) => AlertDialog(
                 title: const Text("Delete Note?"),
-                content: Text("Delete ${note.title}?"),
+                content: Text("Are you sure you want to delete '${note.title}'?"),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("CANCEL"),
+                  ),
                   TextButton(
                     onPressed: () {
                       Navigator.pop(context);
                       onNoteDeleted(index);
                       Navigator.pop(context);
                     },
-                    child: const Text("DELETE"),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text("CANCEL"),
+                    child: Text(
+                      "DELETE",
+                      style: TextStyle(color: Colors.red.shade400),
+                    ),
                   ),
                 ],
               ),
@@ -1051,22 +1083,45 @@ class NoteView extends StatelessWidget {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                note.title,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
+      body: Container(
+        color: Colors.grey.shade50,
+        child: Container(
+          margin: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(24.0),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                spreadRadius: 1,
               ),
-              const SizedBox(height: 20),
-              Text(note.body, style: const TextStyle(fontSize: 18)),
             ],
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  note.title,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const Divider(height: 30),
+                Text(
+                  note.body,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    height: 1.5,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1114,81 +1169,142 @@ class _CreateReminderState extends State<CreateReminder> {
       });
     }
   }
+@override
+Widget build(BuildContext context) {
+  final scheduledDateTime = DateTime(
+    _selectedDate.year,
+    _selectedDate.month,
+    _selectedDate.day,
+    _selectedTime.hour,
+    _selectedTime.minute,
+  );
 
-  @override
-  Widget build(BuildContext context) {
-    final scheduledDateTime = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      _selectedTime.hour,
-      _selectedTime.minute,
-    );
-    return Scaffold(
-      appBar: AppBar(title: const Text('Create Reminder')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(labelText: 'Title'),
+  // Format date and time for display
+  final dateFormatted = "${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}";
+  final timeFormatted = "${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}";
+
+  return Scaffold(
+    appBar: AppBar(title: const Text('Create Reminder')),
+    body: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextFormField(
+            controller: _titleController,
+            decoration: const InputDecoration(
+              labelText: 'Title',
+              border: OutlineInputBorder(),
             ),
-            const SizedBox(height: 20),
-            TextFormField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(labelText: 'Description'),
+          ),
+          const SizedBox(height: 20),
+          TextFormField(
+            controller: _descriptionController,
+            decoration: const InputDecoration(
+              labelText: 'Description',
+              border: OutlineInputBorder(),
             ),
-            const SizedBox(height: 20),
-            Column(
-              children: [
-                Text('Selected Date: ${_selectedDate.toLocal()}'),
-                const SizedBox(width: 20),
-                ElevatedButton(
-                  onPressed: () => _selectDate(context),
-                  child: const Text('Select Date'),
+            maxLines: 3,
+          ),
+          const SizedBox(height: 30),
+          InkWell(
+            onTap: () async {
+              // First select date, then time
+              final DateTime? pickedDate = await showDatePicker(
+                context: context,
+                initialDate: _selectedDate,
+                firstDate: DateTime.now(),
+                lastDate: DateTime(2101),
+              );
+              
+              if (pickedDate != null) {
+                setState(() {
+                  _selectedDate = pickedDate;
+                });
+                
+                // After date is selected, show time picker
+                final TimeOfDay? pickedTime = await showTimePicker(
+                  context: context,
+                  initialTime: _selectedTime,
+                );
+                
+                if (pickedTime != null) {
+                  setState(() {
+                    _selectedTime = pickedTime;
+                  });
+                }
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.blue.shade300, Colors.blue.shade700],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
                 ),
-              ],
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.withOpacity(0.3),
+                    spreadRadius: 1,
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.calendar_today, color: Colors.white),
+                  const SizedBox(width: 10),
+                  Text(
+                    "$dateFormatted at $timeFormatted",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
-            Column(
-              children: [
-                Text('Selected Time: ${_selectedTime.format(context)}'),
-                const SizedBox(width: 20),
-                ElevatedButton(
-                  onPressed: () => _selectTime(context),
-                  child: const Text('Select Time'),
-                ),
-              ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Reminder set for: ${scheduledDateTime.toLocal().toString().substring(0, 16)}',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade700,
             ),
-            const SizedBox(height: 20),
-            Text(
-              'Scheduled for: ${scheduledDateTime.toLocal()}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (_titleController.text.isEmpty ||
-              _descriptionController.text.isEmpty) {
-            return;
-          }
-          final reminder = Reminder(
-            title: _titleController.text,
-            description: _descriptionController.text,
-            dateTime: scheduledDateTime,
+    ),
+    floatingActionButton: FloatingActionButton.extended(
+      onPressed: () {
+        if (_titleController.text.isEmpty ||
+            _descriptionController.text.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please fill in all fields')),
           );
-          widget.onReminderCreated(reminder);
-          scheduleNotification(reminder);
-          Navigator.pop(context);
-        },
-        child: const Icon(Icons.save),
-      ),
-    );
-  }
-
+          return;
+        }
+        final reminder = Reminder(
+          title: _titleController.text,
+          description: _descriptionController.text,
+          dateTime: scheduledDateTime,
+        );
+        widget.onReminderCreated(reminder);
+        scheduleNotification(reminder);
+        Navigator.pop(context);
+      },
+      icon: const Icon(Icons.save),
+      label: const Text('Save Reminder'),
+    ),
+  );
+}
   Future<void> scheduleNotification(Reminder reminder) async {
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
@@ -1210,8 +1326,16 @@ class _CreateReminderState extends State<CreateReminder> {
   }
 }
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  bool showInfo = false;
+  bool showSupport = false;
 
   @override
   Widget build(BuildContext context) {
@@ -1223,38 +1347,139 @@ class SettingsPage extends StatelessWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Appearance',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            SwitchListTile(
-              title: const Text('Dark Mode'),
-              value: themeProvider.isDarkMode,
-              onChanged: (value) {
-                themeProvider.toggleTheme();
-              },
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'About',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const ListTile(
-              title: Text('Version'),
-              subtitle: Text('1.0.0'),
-            ),
-            const ListTile(
-              title: Text('Developer'),
-              subtitle: Text('Abdulaziz Alhhosiny'),
-            ),
-            const ListTile(
-              title: Text('Have problem? Contact us '),
-              subtitle: Text('444190680@student.ksu.edu.sa'),
-            ),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Appearance',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              SwitchListTile(
+                title: const Text('Dark Mode'),
+                value: themeProvider.isDarkMode,
+                onChanged: (value) {
+                  themeProvider.toggleTheme();
+                },
+              ),
+              const SizedBox(height: 20),
+              
+              // Info and Support buttons
+              Row(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        showInfo = !showInfo;
+                        if (showSupport) showSupport = false;
+                      });
+                    },
+                    icon: const Icon(Icons.info_outline),
+                    label: const Text('App Info'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: showInfo ? Theme.of(context).colorScheme.primary : null,
+                      foregroundColor: showInfo ? Colors.white : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        showSupport = !showSupport;
+                        if (showInfo) showInfo = false;
+                      });
+                    },
+                    icon: const Icon(Icons.contact_support_outlined),
+                    label: const Text('Contact Support'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: showSupport ? Theme.of(context).colorScheme.primary : null,
+                      foregroundColor: showSupport ? Colors.white : null,
+                    ),
+                  ),
+                ],
+              ),
+              
+              // Info section
+              if (showInfo) 
+                const Card(
+                  margin: EdgeInsets.symmetric(vertical: 16),
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'About',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'This application helps you manage your daily tasks efficiently. We are committed to providing a seamless experience while ensuring your data remains private and secure.',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                        SizedBox(height: 16),
+                        ListTile(
+                          title: Text('Version'),
+                          subtitle: Text('1.0.0'),
+                        ),
+                        ListTile(
+                          title: Text('Developer'),
+                          subtitle: Text('CisStudents ProjectTeam'),
+                        ),
+                        ListTile(
+                          title: Text('© 2025'),
+                          subtitle: Text('All rights reserved'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              
+              // Support section
+              if (showSupport)
+                Card(
+                  margin: const EdgeInsets.symmetric(vertical: 16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Contact Support',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 16),
+                        ListTile(
+                          leading: const Icon(Icons.email_outlined),
+                          title: const Text('Discord'),
+                          subtitle: const Text('https://discord.gg/gTQsdJeF'),
+                          onTap: () {
+                            // Launch email app with the address
+                            // You may need url_launcher package
+                            // launchUrl(Uri.parse('mailto:Abdulaziz.m.o@outlook.sa'));
+                          },
+                        ),
+                        const Divider(),
+                        const ListTile(
+                          leading: Icon(Icons.support_agent),
+                          title: Text('Support Hours'),
+                          subtitle: Text('24/7 Email Support'),
+                        ),
+                        const Divider(),
+                        ListTile(
+                          leading: const Icon(Icons.help_outline),
+                          title: const Text('Have a problem?'),
+                          subtitle: const Text('We\'re here to help'),
+                          onTap: () {
+                            // Navigate to help page or show dialog
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
