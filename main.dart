@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:math_expressions/math_expressions.dart';
 import 'dart:math';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,32 +54,55 @@ class ThemeProvider with ChangeNotifier {
 class StatisticsProvider with ChangeNotifier {
   int _notesCount = 0;
   int _remindersCount = 0;
-  int _signInCount = 0; // New counter for sign-ins
+  int _signInCount = 0;
   int _appUsageCount = 0;
 
   int get notesCount => _notesCount;
   int get remindersCount => _remindersCount;
-  int get signInCount => _signInCount; // Getter for sign-in count
+  int get signInCount => _signInCount;
   int get appUsageCount => _appUsageCount;
 
   void incrementNotesCount() {
     _notesCount++;
     notifyListeners();
+    _updateStatisticsOnServer();
   }
 
   void incrementRemindersCount() {
     _remindersCount++;
     notifyListeners();
+    _updateStatisticsOnServer();
   }
 
   void incrementSignInCount() {
     _signInCount++;
     notifyListeners();
+    _updateStatisticsOnServer();
   }
 
   void incrementAppUsageCount() {
     _appUsageCount++;
     notifyListeners();
+    _updateStatisticsOnServer();
+  }
+
+  Future<void> _updateStatisticsOnServer() async {
+    final url = Uri.parse(
+        'http://192.168.1.15:5000/register'); // Replace with your server URL
+    final response = await http.put(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'notes_count': _notesCount,
+        'reminders_count': _remindersCount,
+        'sign_in_count': _signInCount,
+        'app_usage_count': _appUsageCount,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      print('Failed to update statistics: ${response.body}');
+    }
   }
 }
 
@@ -173,6 +198,57 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
+  Future<void> _loginUser() async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        // Display loading indicator
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logging in...')),
+        );
+
+        // Get your server IP dynamically or use a configuration file
+        // For testing purposes, you can use your computer's IP address
+        // Make sure your computer and device are on the same network
+        final serverUrl =
+            'http://192.168.1.15:5000'; // Update with your actual IP
+
+        final url = Uri.parse('$serverUrl/login');
+        print('Attempting to connect to: $url');
+
+        final response = await http
+            .post(
+              url,
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                'email': _emailController.text,
+                'password': _passwordController.text,
+              }),
+            )
+            .timeout(const Duration(seconds: 10)); // Add timeout
+
+        print('Response status: ${response.statusCode}');
+        print('Response body: ${response.body}');
+
+        final responseData = jsonDecode(response.body);
+        if (response.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(responseData['message'])),
+          );
+          Navigator.pushReplacementNamed(context, '/home');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(responseData['message'] ?? 'Login failed')),
+          );
+        }
+      } catch (e) {
+        print('Error during login: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Connection error: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final statisticsProvider = Provider.of<StatisticsProvider>(
@@ -258,13 +334,7 @@ class _LoginPageState extends State<LoginPage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        // Increment sign-in count
-                        statisticsProvider.incrementSignInCount();
-                        Navigator.pushReplacementNamed(context, '/home');
-                      }
-                    },
+                    onPressed: _loginUser,
                     child: const Text('Login', style: TextStyle(fontSize: 16)),
                   ),
                 ),
@@ -303,6 +373,59 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+
+  Future<void> _registerUser() async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        // Display loading indicator
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Creating account...')),
+        );
+
+        // Get your server IP dynamically or use a configuration file
+        final serverUrl =
+            'http://192.168.1.15:5000'; // Update with your actual IP
+
+        final url = Uri.parse('$serverUrl/register');
+        print('Attempting to connect to: $url');
+
+        final response = await http
+            .post(
+              url,
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                'email': _emailController.text,
+                'password': _passwordController.text,
+                'name':
+                    _nameController.text, // Make sure this is passed if needed
+              }),
+            )
+            .timeout(const Duration(seconds: 10)); // Add timeout
+
+        print('Response status: ${response.statusCode}');
+        print('Response body: ${response.body}');
+
+        final responseData = jsonDecode(response.body);
+        if (response.statusCode == 201) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(responseData['message'])),
+          );
+          Navigator.pushReplacementNamed(context, '/login');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content:
+                    Text(responseData['message'] ?? 'Registration failed')),
+          );
+        }
+      } catch (e) {
+        print('Error during registration: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Connection error: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -402,11 +525,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        Navigator.pushReplacementNamed(context, '/home');
-                      }
-                    },
+                    onPressed: _registerUser,
                     child: const Text(
                       'Register',
                       style: TextStyle(fontSize: 16),
@@ -434,6 +553,8 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 }
+
+// Rest of the code remains the same...
 
 class HomePage extends StatelessWidget {
   HomePage({super.key});
@@ -1507,7 +1628,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 const Card(
                   margin: EdgeInsets.symmetric(vertical: 16),
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: EdgeInsets.all(16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1646,19 +1767,20 @@ class StatisticsPage extends StatelessWidget {
                   ),
 
                   // Notes Circle
-                  Container(
+                  SizedBox(
                     width: 300,
                     height: 300,
                     child: CircularProgressIndicator(
                       value: notesPercentage,
                       strokeWidth: 30, // Thicker stroke
                       backgroundColor: Colors.transparent,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                      valueColor:
+                          const AlwaysStoppedAnimation<Color>(Colors.blue),
                     ),
                   ),
 
                   // Reminders Circle
-                  Container(
+                  SizedBox(
                     width: 300,
                     height: 300,
                     child: Transform.rotate(
@@ -1667,13 +1789,14 @@ class StatisticsPage extends StatelessWidget {
                         value: remindersPercentage,
                         strokeWidth: 30, // Thicker stroke
                         backgroundColor: Colors.transparent,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(Colors.green),
                       ),
                     ),
                   ),
 
                   // Sign-In Circle
-                  Container(
+                  SizedBox(
                     width: 300,
                     height: 300,
                     child: Transform.rotate(
@@ -1682,7 +1805,7 @@ class StatisticsPage extends StatelessWidget {
                         value: signInPercentage,
                         strokeWidth: 30, // Thicker stroke
                         backgroundColor: Colors.transparent,
-                        valueColor: AlwaysStoppedAnimation<Color>(
+                        valueColor: const AlwaysStoppedAnimation<Color>(
                           Colors.orange,
                         ),
                       ),
@@ -1693,7 +1816,7 @@ class StatisticsPage extends StatelessWidget {
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
+                      const Text(
                         'Total',
                         style: TextStyle(
                           fontSize: 24, // Larger font
