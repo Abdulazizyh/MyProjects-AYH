@@ -1,0 +1,6 @@
+2025-04-01T09:14:11.890Z info: Attempting to connect to database...
+2025-04-01T09:14:11.968Z error: Database connection error: Login failed for user ''.
+2025-04-01T09:18:40.975Z info: Attempting to connect to database...
+2025-04-01T09:18:41.032Z info: Database connection successful
+2025-04-01T09:18:41.036Z info: Server running on port 5000
+2025-04-01T09:18:41.036Z info: To connect from Flutter, use this IP address: 192.168.1.7

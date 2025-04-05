@@ -1,11 +1,18 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:math_expressions/math_expressions.dart';
 import 'dart:math';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'services/api_service.dart'; // Import the API service
+
+// API Service global instance
+final apiService =
+    ApiService(baseUrl: 'http://10.0.2.2:5000'); // Use localhost for emulator
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,46 +69,54 @@ class StatisticsProvider with ChangeNotifier {
   int get signInCount => _signInCount;
   int get appUsageCount => _appUsageCount;
 
-  void incrementNotesCount() {
+  StatisticsProvider() {
+    loadStatistics();
+  }
+
+  Future<void> loadStatistics() async {
+    try {
+      final token = await apiService.getToken();
+      if (token != null) {
+        final stats = await apiService.getStatistics();
+        _notesCount = stats['NotesCount'] ?? 0;
+        _remindersCount = stats['RemindersCount'] ?? 0;
+        _signInCount = stats['SignInCount'] ?? 0;
+        _appUsageCount = stats['AppUsageCount'] ?? 0;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Failed to load statistics: $e');
+    }
+  }
+
+  Future<void> incrementNotesCount() async {
     _notesCount++;
     notifyListeners();
-    _updateStatisticsOnServer();
   }
 
-  void incrementRemindersCount() {
+  Future<void> incrementRemindersCount() async {
     _remindersCount++;
     notifyListeners();
-    _updateStatisticsOnServer();
   }
 
-  void incrementSignInCount() {
-    _signInCount++;
-    notifyListeners();
-    _updateStatisticsOnServer();
+  Future<void> incrementSignInCount() async {
+    try {
+      await apiService.login(
+          'your@email.com', 'password'); // Update with actual login
+      _signInCount++;
+      notifyListeners();
+    } catch (e) {
+      print('Failed to increment sign-in count: $e');
+    }
   }
 
-  void incrementAppUsageCount() {
-    _appUsageCount++;
-    notifyListeners();
-    _updateStatisticsOnServer();
-  }
-
-  Future<void> _updateStatisticsOnServer() async {
-    final url = Uri.parse(
-        'http://192.168.1.15:5000/register'); // Replace with your server URL
-    final response = await http.put(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'notes_count': _notesCount,
-        'reminders_count': _remindersCount,
-        'sign_in_count': _signInCount,
-        'app_usage_count': _appUsageCount,
-      }),
-    );
-
-    if (response.statusCode != 200) {
-      print('Failed to update statistics: ${response.body}');
+  Future<void> incrementAppUsageCount() async {
+    try {
+      await apiService.updateAppUsage();
+      _appUsageCount++;
+      notifyListeners();
+    } catch (e) {
+      print('Failed to increment app usage count: $e');
     }
   }
 }
@@ -151,37 +166,127 @@ class MyApp extends StatelessWidget {
 }
 
 class Note {
+  final int? id;
   final String title;
   final String body;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
-  Note({required this.title, required this.body});
+  Note({
+    this.id,
+    required this.title,
+    required this.body,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory Note.fromJson(Map<String, dynamic> json) {
+    return Note(
+      id: json['NoteID'],
+      title: json['Title'],
+      body: json['Body'],
+      createdAt:
+          json['CreatedAt'] != null ? DateTime.parse(json['CreatedAt']) : null,
+      updatedAt:
+          json['UpdatedAt'] != null ? DateTime.parse(json['UpdatedAt']) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'body': body,
+    };
+  }
 }
 
 class Reminder {
+  final int? id;
   final String title;
   final String description;
   final DateTime dateTime;
+  final DateTime? createdAt;
 
   Reminder({
+    this.id,
     required this.title,
     required this.description,
     required this.dateTime,
+    this.createdAt,
   });
+
+  factory Reminder.fromJson(Map<String, dynamic> json) {
+    return Reminder(
+      id: json['ReminderID'],
+      title: json['Title'],
+      description: json['Description'],
+      dateTime: DateTime.parse(json['DateTime']),
+      createdAt:
+          json['CreatedAt'] != null ? DateTime.parse(json['CreatedAt']) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'dateTime': dateTime.toIso8601String(),
+    };
+  }
 }
 
 class ReminderProvider with ChangeNotifier {
-  final List<Reminder> _reminders = [];
+  List<Reminder> _reminders = [];
 
   List<Reminder> get reminders => _reminders;
 
-  void addReminder(Reminder reminder) {
-    _reminders.add(reminder);
-    notifyListeners();
+  ReminderProvider() {
+    loadReminders();
   }
 
-  void deleteReminder(int index) {
-    _reminders.removeAt(index);
-    notifyListeners();
+  Future<void> loadReminders() async {
+    try {
+      final token = await apiService.getToken();
+      if (token != null) {
+        final List<Map<String, dynamic>> reminderData =
+            await apiService.getReminders();
+        _reminders =
+            reminderData.map((data) => Reminder.fromJson(data)).toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Failed to load reminders: $e');
+    }
+  }
+
+  Future<void> addReminder(Reminder reminder) async {
+    try {
+      final result = await apiService.createReminder(
+        reminder.title,
+        reminder.description,
+        reminder.dateTime,
+      );
+      final newReminder = Reminder.fromJson(result);
+      _reminders.add(newReminder);
+      notifyListeners();
+    } catch (e) {
+      print('Failed to add reminder: $e');
+    }
+  }
+
+  Future<void> deleteReminder(int index) async {
+    try {
+      final reminder = _reminders[index];
+      if (reminder.id != null) {
+        await apiService.deleteReminder(reminder.id!);
+      }
+      _reminders.removeAt(index);
+      notifyListeners();
+    } catch (e) {
+      print('Failed to delete reminder: $e');
+    }
   }
 }
 
@@ -197,55 +302,22 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
+  String _errorMessage = '';
 
-  Future<void> _loginUser() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        // Display loading indicator
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logging in...')),
-        );
+  @override
+  void initState() {
+    super.initState();
+    checkExistingToken();
+  }
 
-        // Get your server IP dynamically or use a configuration file
-        // For testing purposes, you can use your computer's IP address
-        // Make sure your computer and device are on the same network
-        final serverUrl =
-            'http://192.168.1.15:5000'; // Update with your actual IP
-
-        final url = Uri.parse('$serverUrl/login');
-        print('Attempting to connect to: $url');
-
-        final response = await http
-            .post(
-              url,
-              headers: {'Content-Type': 'application/json'},
-              body: jsonEncode({
-                'email': _emailController.text,
-                'password': _passwordController.text,
-              }),
-            )
-            .timeout(const Duration(seconds: 10)); // Add timeout
-
-        print('Response status: ${response.statusCode}');
-        print('Response body: ${response.body}');
-
-        final responseData = jsonDecode(response.body);
-        if (response.statusCode == 200) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(responseData['message'])),
-          );
-          Navigator.pushReplacementNamed(context, '/home');
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(responseData['message'] ?? 'Login failed')),
-          );
-        }
-      } catch (e) {
-        print('Error during login: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Connection error: $e')),
-        );
-      }
+  Future<void> checkExistingToken() async {
+    final token = await apiService.getToken();
+    if (token != null) {
+      // If token exists, navigate to home page
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacementNamed(context, '/home');
+      });
     }
   }
 
@@ -257,7 +329,7 @@ class _LoginPageState extends State<LoginPage> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
+      appBar: AppBar(title: const Text('Sign in')),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -324,19 +396,61 @@ class _LoginPageState extends State<LoginPage> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 16),
+                if (_errorMessage.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      _errorMessage,
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ),
+                const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: _loginUser,
-                    child: const Text('Login', style: TextStyle(fontSize: 16)),
-                  ),
+                  child: _isLoading
+                      ? Center(child: CircularProgressIndicator())
+                      : ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () async {
+                            if (_formKey.currentState!.validate()) {
+                              setState(() {
+                                _isLoading = true;
+                                _errorMessage = '';
+                              });
+
+                              try {
+                                // Attempt to login
+                                await apiService.login(
+                                  _emailController.text,
+                                  _passwordController.text,
+                                );
+
+                                // Increment sign-in count
+                                statisticsProvider.incrementSignInCount();
+
+                                // Navigate to home page
+                                Navigator.pushReplacementNamed(
+                                    context, '/home');
+                              } catch (e) {
+                                setState(() {
+                                  _errorMessage = e.toString();
+                                });
+                              } finally {
+                                setState(() {
+                                  _isLoading = false;
+                                });
+                              }
+                            }
+                          },
+                          child: const Text('Sign in',
+                              style: TextStyle(fontSize: 16)),
+                        ),
                 ),
                 const SizedBox(height: 20),
                 TextButton(
@@ -373,64 +487,13 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-
-  Future<void> _registerUser() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        // Display loading indicator
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Creating account...')),
-        );
-
-        // Get your server IP dynamically or use a configuration file
-        final serverUrl =
-            'http://192.168.1.15:5000'; // Update with your actual IP
-
-        final url = Uri.parse('$serverUrl/register');
-        print('Attempting to connect to: $url');
-
-        final response = await http
-            .post(
-              url,
-              headers: {'Content-Type': 'application/json'},
-              body: jsonEncode({
-                'email': _emailController.text,
-                'password': _passwordController.text,
-                'name':
-                    _nameController.text, // Make sure this is passed if needed
-              }),
-            )
-            .timeout(const Duration(seconds: 10)); // Add timeout
-
-        print('Response status: ${response.statusCode}');
-        print('Response body: ${response.body}');
-
-        final responseData = jsonDecode(response.body);
-        if (response.statusCode == 201) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(responseData['message'])),
-          );
-          Navigator.pushReplacementNamed(context, '/login');
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content:
-                    Text(responseData['message'] ?? 'Registration failed')),
-          );
-        }
-      } catch (e) {
-        print('Error during registration: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Connection error: $e')),
-        );
-      }
-    }
-  }
+  bool _isLoading = false;
+  String _errorMessage = '';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Register')),
+      appBar: AppBar(title: const Text('Sign Up')),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -509,28 +572,67 @@ class _RegisterPageState extends State<RegisterPage> {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your password';
                     }
-                    if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
+                    if (value.length < 8) {
+                      return 'Password must be at least 8 characters';
                     }
                     return null;
                   },
                 ),
-                const SizedBox(height: 40),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: _registerUser,
-                    child: const Text(
-                      'Register',
-                      style: TextStyle(fontSize: 16),
+                const SizedBox(height: 16),
+                if (_errorMessage.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      _errorMessage,
+                      style: TextStyle(color: Colors.red),
                     ),
                   ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: _isLoading
+                      ? Center(child: CircularProgressIndicator())
+                      : ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () async {
+                            if (_formKey.currentState!.validate()) {
+                              setState(() {
+                                _isLoading = true;
+                                _errorMessage = '';
+                              });
+
+                              try {
+                                // Attempt to register
+                                await apiService.register(
+                                  _nameController.text,
+                                  _emailController.text,
+                                  _passwordController.text,
+                                );
+
+                                // Navigate to home page
+                                Navigator.pushReplacementNamed(
+                                    context, '/home');
+                              } catch (e) {
+                                setState(() {
+                                  _errorMessage = e.toString();
+                                });
+                              } finally {
+                                setState(() {
+                                  _isLoading = false;
+                                });
+                              }
+                            }
+                          },
+                          child: const Text(
+                            'Sign Up',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
                 ),
                 const SizedBox(height: 20),
                 TextButton(
@@ -538,7 +640,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     Navigator.pushNamed(context, '/login');
                   },
                   child: Text(
-                    'Already have an account? Login',
+                    'Already have an account? Sign in',
                     style: TextStyle(
                       color: Theme.of(context).primaryColor,
                       fontWeight: FontWeight.w600,
@@ -554,24 +656,63 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 }
 
-// Rest of the code remains the same...
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
-class HomePage extends StatelessWidget {
-  HomePage({super.key});
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
 
+class _HomePageState extends State<HomePage> {
   // Define the calculator overlay instance
   final CalculatorOverlay _calculatorOverlay = CalculatorOverlay();
+  List<Reminder> _todayReminders = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTodayReminders();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh the today reminders when returning to this page
+    _updateTodayReminders();
+  }
+
+  void _updateTodayReminders() {
+    final reminderProvider =
+        Provider.of<ReminderProvider>(context, listen: false);
+    final now = DateTime.now();
+
+    setState(() {
+      _todayReminders = reminderProvider.reminders.where((reminder) {
+        return reminder.dateTime.year == now.year &&
+            reminder.dateTime.month == now.month &&
+            reminder.dateTime.day == now.day;
+      }).toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final reminderProvider = Provider.of<ReminderProvider>(context);
     final statisticsProvider = Provider.of<StatisticsProvider>(context);
-    final todayReminders = reminderProvider.reminders.where((reminder) {
-      final now = DateTime.now();
-      return reminder.dateTime.year == now.year &&
-          reminder.dateTime.month == now.month &&
-          reminder.dateTime.day == now.day;
-    }).toList();
+
+    // This will update today's reminders whenever the reminders list changes
+    if (_todayReminders.length !=
+        reminderProvider.reminders
+            .where((reminder) {
+              final now = DateTime.now();
+              return reminder.dateTime.year == now.year &&
+                  reminder.dateTime.month == now.month &&
+                  reminder.dateTime.day == now.day;
+            })
+            .toList()
+            .length) {
+      _updateTodayReminders();
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -579,8 +720,29 @@ class HomePage extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () {
-              Navigator.pushReplacementNamed(context, '/login');
+            onPressed: () async {
+              try {
+                // 1. Clear token from SharedPreferences
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('auth_token');
+
+                // 2. Reset any auth state in your API service
+                await apiService
+                    .logout(); // Create this method if it doesn't exist
+
+                // 3. Use a more forceful navigation approach
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/login', (Route<dynamic> route) => false);
+
+                // 4. Show feedback to the user
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Logged out successfully')));
+              } catch (e) {
+                print('Error during logout: $e');
+                // Show error to user
+                ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error logging out: $e')));
+              }
             },
           ),
         ],
@@ -598,8 +760,10 @@ class HomePage extends StatelessWidget {
                 _buildQuickAction(
                   Icons.file_copy,
                   'Notes',
-                  onTap: () {
-                    Navigator.pushNamed(context, '/notes');
+                  onTap: () async {
+                    await Navigator.pushNamed(context, '/notes');
+                    // Refresh today reminders when returning from other screens
+                    _updateTodayReminders();
                   },
                 ),
                 _buildQuickAction(
@@ -610,20 +774,22 @@ class HomePage extends StatelessWidget {
                 _buildQuickAction(
                   Icons.bar_chart,
                   'Statistics',
-                  onTap: () {
-                    Navigator.push(
+                  onTap: () async {
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const StatisticsPage(),
                       ),
                     );
+                    // Refresh today reminders when returning from other screens
+                    _updateTodayReminders();
                   },
                 ),
                 _buildQuickAction(
                   Icons.timer,
                   'Reminder',
-                  onTap: () {
-                    Navigator.push(
+                  onTap: () async {
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => CreateReminder(
@@ -633,19 +799,25 @@ class HomePage extends StatelessWidget {
                         ),
                       ),
                     );
+                    // Explicitly update today's reminders after creating a new one
+                    _updateTodayReminders();
                   },
                 ),
                 _buildQuickAction(
                   Icons.settings,
                   'Settings',
-                  onTap: () => Navigator.pushNamed(context, '/settings'),
+                  onTap: () async {
+                    await Navigator.pushNamed(context, '/settings');
+                    // Refresh today reminders when returning from other screens
+                    _updateTodayReminders();
+                  },
                 ),
               ],
             ),
             const SizedBox(height: 32),
             const Text("Today's Events", style: TextStyle(fontSize: 24)),
             const SizedBox(height: 16),
-            _buildEventCard(todayReminders, reminderProvider, context),
+            _buildEventCard(_todayReminders, reminderProvider, context),
           ],
         ),
       ),
@@ -692,6 +864,8 @@ class HomePage extends StatelessWidget {
               onPressed: () {
                 final index = reminderProvider.reminders.indexOf(reminder);
                 reminderProvider.deleteReminder(index);
+                // Update today's reminders after deletion
+                _updateTodayReminders();
               },
             ),
           ),
@@ -710,6 +884,53 @@ class NotesScreen extends StatefulWidget {
 
 class _NotesScreenState extends State<NotesScreen> {
   List<Note> notes = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotes();
+  }
+
+  @override
+  void dispose() {
+    // Save notes when leaving the screen
+    _saveNotes();
+    super.dispose();
+  }
+
+  Future<void> _loadNotes() async {
+    try {
+      final token = await apiService.getToken();
+      if (token != null) {
+        final List<Map<String, dynamic>> notesData =
+            await apiService.getNotes();
+        setState(() {
+          notes = notesData.map((data) => Note.fromJson(data)).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Failed to load notes: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _saveNotes() async {
+    try {
+      // Save all notes to the API or local storage
+      for (final note in notes) {
+        if (note.id == null) {
+          // This is a new note that hasn't been saved to the backend
+          await apiService.createNote(note.title, note.body);
+        }
+      }
+    } catch (e) {
+      print('Failed to save notes: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -719,42 +940,44 @@ class _NotesScreenState extends State<NotesScreen> {
         elevation: 0,
         centerTitle: true,
       ),
-      body: notes.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.note_alt_outlined,
-                    size: 80,
-                    color: Colors.grey.shade400,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : notes.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.note_alt_outlined,
+                        size: 80,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No notes yet',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap the + button to create a note',
+                        style: TextStyle(color: Colors.grey.shade500),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No notes yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey.shade600,
-                    ),
+                )
+              : ListView.builder(
+                  itemCount: notes.length,
+                  padding: const EdgeInsets.all(12),
+                  itemBuilder: (context, index) => NoteCard(
+                    note: notes[index],
+                    index: index,
+                    onNoteDeleted: onNoteDeleted,
+                    onNoteUpdated: onNoteUpdated,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Tap the + button to create a note',
-                    style: TextStyle(color: Colors.grey.shade500),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              itemCount: notes.length,
-              padding: const EdgeInsets.all(12),
-              itemBuilder: (context, index) => NoteCard(
-                note: notes[index],
-                index: index,
-                onNoteDeleted: onNoteDeleted,
-                onNoteUpdated: onNoteUpdated,
-              ),
-            ),
+                ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.push(
           context,
@@ -773,7 +996,20 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   void onNewNoteCreated(Note note) => setState(() => notes.add(note));
-  void onNoteDeleted(int index) => setState(() => notes.removeAt(index));
+
+  void onNoteDeleted(int index) async {
+    final note = notes[index];
+    setState(() => notes.removeAt(index));
+
+    try {
+      if (note.id != null) {
+        await apiService.deleteNote(note.id!);
+      }
+    } catch (e) {
+      print('Failed to delete note: $e');
+    }
+  }
+
   void onNoteUpdated(int index, Note updatedNote) {
     setState(() {
       notes[index] = updatedNote;
@@ -1628,7 +1864,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 const Card(
                   margin: EdgeInsets.symmetric(vertical: 16),
                   child: Padding(
-                    padding: EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1767,20 +2003,19 @@ class StatisticsPage extends StatelessWidget {
                   ),
 
                   // Notes Circle
-                  SizedBox(
+                  Container(
                     width: 300,
                     height: 300,
                     child: CircularProgressIndicator(
                       value: notesPercentage,
                       strokeWidth: 30, // Thicker stroke
                       backgroundColor: Colors.transparent,
-                      valueColor:
-                          const AlwaysStoppedAnimation<Color>(Colors.blue),
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
                     ),
                   ),
 
                   // Reminders Circle
-                  SizedBox(
+                  Container(
                     width: 300,
                     height: 300,
                     child: Transform.rotate(
@@ -1789,14 +2024,13 @@ class StatisticsPage extends StatelessWidget {
                         value: remindersPercentage,
                         strokeWidth: 30, // Thicker stroke
                         backgroundColor: Colors.transparent,
-                        valueColor:
-                            const AlwaysStoppedAnimation<Color>(Colors.green),
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
                       ),
                     ),
                   ),
 
                   // Sign-In Circle
-                  SizedBox(
+                  Container(
                     width: 300,
                     height: 300,
                     child: Transform.rotate(
@@ -1805,7 +2039,7 @@ class StatisticsPage extends StatelessWidget {
                         value: signInPercentage,
                         strokeWidth: 30, // Thicker stroke
                         backgroundColor: Colors.transparent,
-                        valueColor: const AlwaysStoppedAnimation<Color>(
+                        valueColor: AlwaysStoppedAnimation<Color>(
                           Colors.orange,
                         ),
                       ),
@@ -1816,7 +2050,7 @@ class StatisticsPage extends StatelessWidget {
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
+                      Text(
                         'Total',
                         style: TextStyle(
                           fontSize: 24, // Larger font
@@ -1965,12 +2199,15 @@ class _CalculatorState extends State<Calculator> {
         }
       } else if (buttonText == '=') {
         try {
+          // Replace non-standard symbols with standard ones
+          String expression = _input.replaceAll('×', '*').replaceAll('÷', '/');
+
           Parser p = Parser();
-          Expression exp = p.parse(_input);
+          Expression exp = p.parse(expression);
           ContextModel cm = ContextModel();
           double result = exp.evaluate(EvaluationType.REAL, cm);
 
-          // Format result to avoid excessive decimals
+          // Format the result to avoid excessive decimal places
           if (result == result.toInt()) {
             _output = result.toInt().toString();
           } else {
@@ -1995,7 +2232,7 @@ class _CalculatorState extends State<Calculator> {
     return Material(
       child: Container(
         width: 300,
-        height: 450, // Fixed height to prevent overflow
+        height: 450,
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
@@ -2091,7 +2328,6 @@ class _CalculatorState extends State<Calculator> {
             // Calculator buttons
             Expanded(
               child: SingleChildScrollView(
-                // Add a scrollable area for the buttons
                 child: GridView.count(
                   physics: const NeverScrollableScrollPhysics(),
                   crossAxisCount: 4,
@@ -2197,12 +2433,11 @@ class CalculatorOverlay {
         child: GestureDetector(
           onPanUpdate: (details) {
             // Update the position when dragged
-            setState(() {
-              _offset = Offset(
-                _offset.dx + details.delta.dx,
-                _offset.dy + details.delta.dy,
-              );
-            });
+            _offset = Offset(
+              _offset.dx + details.delta.dx,
+              _offset.dy + details.delta.dy,
+            );
+            _overlayEntry?.markNeedsBuild(); // Rebuild the overlay
           },
           child: Material(
             child: Calculator(
@@ -2222,12 +2457,6 @@ class CalculatorOverlay {
     _overlayEntry?.remove();
     _overlayEntry = null;
     _isVisible = false;
-  }
-
-  void setState(VoidCallback fn) {
-    if (_overlayEntry != null) {
-      _overlayEntry!.markNeedsBuild();
-    }
   }
 
   bool get isVisible => _isVisible;
