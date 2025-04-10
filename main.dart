@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api, duplicate_ignore, deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:math_expressions/math_expressions.dart';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
 import 'services/api_service.dart'; // Import the API service
 
 // API Service global instance
@@ -156,7 +155,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
-        '/home': (context) => HomePage(),
+        '/home': (context) => const HomePage(),
         '/notes': (context) => const NotesScreen(),
         '/settings': (context) => const SettingsPage(),
         '/statistics': (context) => const StatisticsPage(),
@@ -294,6 +293,7 @@ class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _LoginPageState createState() => _LoginPageState();
 }
 
@@ -402,14 +402,14 @@ class _LoginPageState extends State<LoginPage> {
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Text(
                       _errorMessage,
-                      style: TextStyle(color: Colors.red),
+                      style: const TextStyle(color: Colors.red),
                     ),
                   ),
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   child: _isLoading
-                      ? Center(child: CircularProgressIndicator())
+                      ? const Center(child: CircularProgressIndicator())
                       : ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -584,14 +584,14 @@ class _RegisterPageState extends State<RegisterPage> {
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Text(
                       _errorMessage,
-                      style: TextStyle(color: Colors.red),
+                      style: const TextStyle(color: Colors.red),
                     ),
                   ),
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   child: _isLoading
-                      ? Center(child: CircularProgressIndicator())
+                      ? const Center(child: CircularProgressIndicator())
                       : ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -698,7 +698,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final reminderProvider = Provider.of<ReminderProvider>(context);
-    final statisticsProvider = Provider.of<StatisticsProvider>(context);
+    Provider.of<StatisticsProvider>(context);
 
     // This will update today's reminders whenever the reminders list changes
     if (_todayReminders.length !=
@@ -1864,7 +1864,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 const Card(
                   margin: EdgeInsets.symmetric(vertical: 16),
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: EdgeInsets.all(16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1887,7 +1887,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         ListTile(
                           title: Text('Developer'),
-                          subtitle: Text('CisStudents ProjectTeam'),
+                          subtitle: Text('CS Students Project Team'),
                         ),
                         ListTile(
                           title: Text('© 2025'),
@@ -1917,8 +1917,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         const SizedBox(height: 16),
                         ListTile(
                           leading: const Icon(Icons.email_outlined),
-                          title: const Text('Discord'),
-                          subtitle: const Text('https://discord.gg/gTQsdJeF'),
+                          title: const Text('Email Us'),
+                          subtitle: const Text('COMP001CS@GMAIL.COM'),
                           onTap: () {
                             // Launch email app with the address
                             // You may need url_launcher package
@@ -2003,19 +2003,20 @@ class StatisticsPage extends StatelessWidget {
                   ),
 
                   // Notes Circle
-                  Container(
+                  SizedBox(
                     width: 300,
                     height: 300,
                     child: CircularProgressIndicator(
                       value: notesPercentage,
                       strokeWidth: 30, // Thicker stroke
                       backgroundColor: Colors.transparent,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                      valueColor:
+                          const AlwaysStoppedAnimation<Color>(Colors.blue),
                     ),
                   ),
 
                   // Reminders Circle
-                  Container(
+                  SizedBox(
                     width: 300,
                     height: 300,
                     child: Transform.rotate(
@@ -2024,13 +2025,14 @@ class StatisticsPage extends StatelessWidget {
                         value: remindersPercentage,
                         strokeWidth: 30, // Thicker stroke
                         backgroundColor: Colors.transparent,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(Colors.green),
                       ),
                     ),
                   ),
 
                   // Sign-In Circle
-                  Container(
+                  SizedBox(
                     width: 300,
                     height: 300,
                     child: Transform.rotate(
@@ -2039,7 +2041,7 @@ class StatisticsPage extends StatelessWidget {
                         value: signInPercentage,
                         strokeWidth: 30, // Thicker stroke
                         backgroundColor: Colors.transparent,
-                        valueColor: AlwaysStoppedAnimation<Color>(
+                        valueColor: const AlwaysStoppedAnimation<Color>(
                           Colors.orange,
                         ),
                       ),
@@ -2050,7 +2052,7 @@ class StatisticsPage extends StatelessWidget {
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
+                      const Text(
                         'Total',
                         style: TextStyle(
                           fontSize: 24, // Larger font
@@ -2199,7 +2201,7 @@ class _CalculatorState extends State<Calculator> {
         }
       } else if (buttonText == '=') {
         try {
-          // Replace non-standard symbols with standard ones
+          // استبدال الرموز غير القياسية بالرموز القياسية
           String expression = _input.replaceAll('×', '*').replaceAll('÷', '/');
 
           Parser p = Parser();
@@ -2207,7 +2209,7 @@ class _CalculatorState extends State<Calculator> {
           ContextModel cm = ContextModel();
           double result = exp.evaluate(EvaluationType.REAL, cm);
 
-          // Format the result to avoid excessive decimal places
+          // تنسيق النتيجة لتجنب الكسور العشرية الزائدة
           if (result == result.toInt()) {
             _output = result.toInt().toString();
           } else {
@@ -2246,7 +2248,7 @@ class _CalculatorState extends State<Calculator> {
         ),
         child: Column(
           children: [
-            // Calculator header with close button
+            // رأس الآلة الحاسبة مع زر الإغلاق
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
@@ -2277,9 +2279,9 @@ class _CalculatorState extends State<Calculator> {
               ),
             ),
 
-            // Display area
+            // منطقة العرض
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(8),
               alignment: Alignment.bottomRight,
               height: 100,
               decoration: BoxDecoration(
@@ -2295,7 +2297,7 @@ class _CalculatorState extends State<Calculator> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  // Input
+                  // الإدخال
                   Text(
                     _input,
                     style: TextStyle(
@@ -2309,7 +2311,7 @@ class _CalculatorState extends State<Calculator> {
                     textAlign: TextAlign.end,
                   ),
                   const SizedBox(height: 8),
-                  // Output
+                  // الإخراج
                   Text(
                     _output,
                     style: TextStyle(
@@ -2325,7 +2327,7 @@ class _CalculatorState extends State<Calculator> {
               ),
             ),
 
-            // Calculator buttons
+            // أزرار الآلة الحاسبة
             Expanded(
               child: SingleChildScrollView(
                 child: GridView.count(
