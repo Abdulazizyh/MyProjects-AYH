@@ -107,4 +107,25 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+router.get('/search/:query', async (req, res) => {
+  try {
+    const searchQuery = req.params.query;
+    
+    const result = await global.sqlPool.request()
+      .input('userId', sql.Int, req.user.id)
+      .input('searchTerm', sql.NVarChar, `%${searchQuery}%`) // Using LIKE query with wildcards
+      .query(`
+        SELECT * FROM Notes 
+        WHERE UserID = @userId 
+        AND Title LIKE @searchTerm 
+        ORDER BY CreatedAt DESC
+      `);
+    
+    res.json(result.recordset);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;
