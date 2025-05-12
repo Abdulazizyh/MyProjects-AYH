@@ -72,25 +72,4 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
-// Add this to your server.js file
-app.post('/test-email-check', async (req, res) => {
-  try {
-    const { email } = req.body;
-    console.log('Test email check for:', email);
-    
-    const result = await global.sqlPool.request()
-      .input('email', sql.NVarChar, email)
-      .query('SELECT COUNT(*) AS count FROM Users WHERE Email = @email');
-    
-    const count = result.recordset[0].count;
-    console.log('Email count in database:', count);
-    
-    res.json({ 
-      exists: count > 0,
-      count: count
-    });
-  } catch (err) {
-    console.error('Test email check error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
+

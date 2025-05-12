@@ -4,7 +4,7 @@ const router = express.Router();
 const sql = require('mssql');
 
 // Get statistics for the authenticated user
-router.get('/', async (req, res) => {
+router.get('/Statistics', async (req, res) => {
   try {
     const result = await global.sqlPool.request()
       .input('userId', sql.Int, req.user.id)
